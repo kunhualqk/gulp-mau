@@ -4,12 +4,12 @@ var mau = require('mau');
 var path = require('path');
 var rimraf = require('rimraf');
 var through = require('through2');
-var debug = require('debug')('gulp-peaches');
+var debug = require('debug')('gulp-mau');
 var PluginError = require('gulp-util').PluginError;
 var _ = require('lodash');
 
 // Consts
-var PLUGIN_NAME = 'gulp-peaches';
+var PLUGIN_NAME = 'gulp-mau';
 
 module.exports = function gulpPeaches(options) {
 
@@ -29,7 +29,7 @@ module.exports = function gulpPeaches(options) {
 
     var that = this;
     var code = file.contents.toString();
-    peaches(code, options, function(err, styleText) {
+	  mau(code, options, function(err, styleText) {
       if (err) {
         debug('file %s error %s', file.path, err);
         return callback(new PluginError(err));
