@@ -1,140 +1,51 @@
-/*jslint node: true */
-var es = require('event-stream');
+'use strict';
 
-function createWait(done, start) {
-	var num = 0;
-	start = start || false;
-	return function (handle, _start) {
-		start = _start;
-		num++;
-		handle(function () {
+var mau = require('mau');
+var path = require('path');
+var rimraf = require('rimraf');
+var through = require('through2');
+var debug = require('debug')('gulp-peaches');
+var PluginError = require('gulp-util').PluginError;
+var _ = require('lodash');
 
-			if ((--num) === 0 && start) {
+// Consts
+var PLUGIN_NAME = 'gulp-peaches';
 
-				done();
-			}
-		});
-	}
-}
+module.exports = function gulpPeaches(options) {
 
-function onString(file, callback) {
-	if (file.isBuffer()) {
-		callback(String(file.contents));
-	}
-	else if (file.isStream) {
-		var bufs = [];
-		file.contents.on('data', function (d) {
-			bufs.push(d);
-		});
-		file.contents.on('end', function () {
-			callback(String(Buffer.concat(bufs)));
-		});
-	}
-	else {
-		callback("");
-	}
-}
+  var defaultOpt = {
+    server: {
+      'name': 'tfs',
+      'root': './tmp',
+      'tmp': './tmp'
+    }
+  };
 
-module.exports = {
-	toKissyJs: function (nameGetter) {
-		return this.replace({patterns: [
-			{
-				match: /^[^$]+$/,
-				replacer: function (file) {
-					return function (content) {
-						return 'KISSY.add("' + nameGetter(file) + '",function(){return ' + content + '})'
-					}
-				}
-			}
-		]})
-	},
-	toKissyCss: function (nameGetter) {
-		return this.replace({patterns: [
-			{
-				match: /^[^$]+$/,
-				replacer: function (file) {
-					return function (content) {
-						return 'KISSY.add("' + nameGetter(file) + '",function(S,D){return D.addStyleSheet((' + content + ')()) || null},{requires:["dom"]})'
-					}
-				}
-			}
-		]})
-	},
-	prependPipe: function (replacer, spliter) {
-		return this.replace({patterns: [
-			{
-				match: /^/,
-				replacement: spliter || ""
-			},
-			{
-				match: /^/,
-				replacer: replacer
-			}
-		]});
-	},
-	appendPipe: function (replacer, spliter) {
-		return this.replace({patterns: [
-			{
-				match: /$/,
-				replacement: spliter || ""
-			},
-			{
-				match: /$/,
-				replacer: replacer
-			}
-		]});
-	},
-	replace: function (option) {
-		return es.map(function (file, callback) {
-			var patterns = {},
-				contents,
-				wait = createWait(function () {
-					for (var key in patterns) {
-						var pattern = patterns[key];
-						contents = contents.replace(pattern.match, pattern.replacement);
-					}
-					file.contents = new Buffer(contents);
-					callback(null, file);
-				});
+  options = _.extend(defaultOpt, options);
 
-			wait(function (callback) {
-				onString(file, function (str) {
-					contents = str;
-					callback();
-				});
-			});
+  return through.obj(function transform(file, enc, callback) {
+    if (file.isNull()) return callback(null, file);
+    if (file.isStream()) return callback(new PluginError(PLUGIN_NAME, 'Streaming not supported.'));
 
-			function prepare(_pattern, pattern) {
-				pattern.match = _pattern.match;
-				pattern.replacement = _pattern.replacement;
-				if (_pattern.replacer) {
-					pattern.replacement = _pattern.replacer(file);
-				}
-				if (!pattern.replacement) {
-					return;
-				}
-				var replacement = pattern.replacement;
-				if (replacement.pipe) {
-					wait(function (callback) {
-						replacement.pipe(es.map(function (file, _callback) {
-							onString(file, function (str) {
-								_callback(null, file);
-								pattern.replacement = function () {
-									return str
-								};
-								callback();
-							});
-						}));
-					});
-				}
-			}
+    var that = this;
+    var code = file.contents.toString();
+    peaches(code, options, function(err, styleText) {
+      if (err) {
+        debug('file %s error %s', file.path, err);
+        return callback(new PluginError(err));
+      }
 
-			for (var key in option.patterns) {
-				prepare(option.patterns[key], patterns[key] = {});
-			}
-			wait(function (callback) {
-				callback();
-			}, true);
-		});
-	}
-}
+      debug('file %s success', file.path);
+      file.contents = new Buffer(styleText);
+      that.push(file);
+
+      if (options.server.tmp) {
+        var tmp = path.resolve(options.server.tmp);
+        debug('remove tmp %s', tmp);
+        rimraf(tmp, callback);
+      } else {
+        callback();
+      }
+    });
+  });
+};
