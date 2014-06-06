@@ -1,0 +1,31 @@
+{
+	"name": "gulp-mau",
+	"version": "0.0.1",
+	"description": "Mau plugin for gulp.",
+	"main": "index.js",
+	"dependencies": {
+		"event-stream": "~3.0.18",
+		"debug": "~0.8.1",
+		"gulp-util": "^2.2.14",
+		"lodash": "~2.4.1",
+		"peaches": "~0.5.18",
+		"rimraf": "~2.2.8",
+		"through2": "~0.4.2"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/kunhualqk/gulp-mau.git"
+	},
+	"keywords": [
+		"mau",
+		"peaches"
+	],
+	"author": "K_Reverter <kunhualqk@gmail.com>",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/kunhualqk/gulp-mau/issues"
+	},
+	"engines": {
+		"node": ">=0.8"
+	}
+}
